@@ -1,0 +1,112 @@
+---
+title: "Mappeoppgave 1"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+author: "Andre Langvik, Martin Smedstad, Mathias Hetland"
+output: 
+  pdf_document: default
+  
+---
+
+## Oppgave 1
+```{r, include = FALSE}
+library(tidyverse)
+library(lubridate)
+library(zoo)
+library(janitor)
+library(plyr)
+```
+
+
+```{r lower}
+lower <- 
+  read_table("https://www.nsstc.uah.edu/data/msu/v6.0/tlt/uahncdc_lt_6.0.txt") %>% 
+  .[1:which(.$Year %in% "Year")-1, ] %>% 
+  clean_names() %>% 
+  .[ , 1:3] %>%  
+  mutate(dato = ymd(paste(.$year, .$mo, 1, sep = "-"))) %>% 
+  mutate_if(is.character, ~as.numeric(.)) %>% 
+  select(dato, globe) %>% 
+  mutate(glidende_snitt = rollmean(globe, 13, fill = NA, align = "center"))
+```
+
+
+```{r}
+lower %>% 
+  ggplot(aes(x=dato, y=globe)) + 
+  geom_line(col="blue") + 
+  theme_bw() +
+  geom_point(shape=1,col="blue") +
+  geom_line(aes(y=glidende_snitt), col="red", lwd=1.2) + 
+  labs(x = "Latest Global Average Tropospheric Tempratures", 
+       y = "T Depature from 91-20 Avg. (deg.C)", 
+       title = "UAH Satellite-Based Temperature of the Global Lower Atmosphere (Version 6.0)") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_x_date(date_breaks = "1 years", date_labels = "%Y") + 
+  scale_y_continuous( 
+    expand = c(0,0.03), 
+    breaks = seq(from = -0.7,
+                 to = 1,
+                 by = 0.1), 
+    labels = scales::number_format(accuracy = 0.1, decimal.mark = '.'))
+
+```
+
+**Dette plotte viser den gjennomsnittlige temperatur variasjonene fra år 1977 til 2021 i den nedre atmosfæren, med et glidene gjennomsnitt igjennom observasjonene som man kan se er økenede.**
+
+
+## Oppgave 2
+```{r}
+scrape_bake <- function(url, location) {
+  return(read_table(url) %>% 
+           .[1:which(.$Year %in% "Year")-1, ] %>% 
+           clean_names() %>% 
+           mutate(dato = ymd(paste(.$year, .$mo, 1, sep = "-"))) %>% 
+           mutate_if(is.character, ~as.numeric(.)) %>% 
+           mutate(nivå = paste0(location)))
+}
+url_list <- list("http://vortex.nsstc.uah.edu/data/msu/v6.0/tlt/uahncdc_lt_6.0.txt",
+                 "http://vortex.nsstc.uah.edu/data/msu/v6.0/tmt/uahncdc_mt_6.0.txt",
+                 "http://vortex.nsstc.uah.edu/data/msu/v6.0/ttp/uahncdc_tp_6.0.txt",
+                 "http://vortex.nsstc.uah.edu/data/msu/v6.0/tls/uahncdc_ls_6.0.txt")
+location_list <- list("Lower Tropos","Mid-Tropos", "Tropo", "Lower Stratos")
+d.frame <- map2(url_list, location_list, scrape_bake)
+d.frame <- ldply(d.frame, data.frame)
+d.frame <- d.frame %>%  
+  select(dato, no_pol, nivå) %>% 
+  as_tibble() %>% 
+  mutate(gj.snitt.alle = rollmean(no_pol, 13, fill = NA, align = "center"))
+```
+
+
+```{r d.frame}
+ggplot(d.frame, aes(x = dato, y = no_pol, color = nivå)) + 
+  geom_line(linetype = "dashed", lwd=0.9) + 
+  theme_bw() + 
+  geom_point(shape = 1) + 
+  geom_line(aes(y=gj.snitt.alle), col="yellow", lwd = 0.2) + 
+  ggtitle("Temperaturen på fire nivå av atmosfæren i området 60°- 90° nord \n med gjennomsnitt ") + 
+  labs(y="Temperatur (deg.C)", x="Gjennomsnittlig temperaturendringer") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y") + 
+  scale_y_continuous( 
+    expand = c(0,0), 
+    breaks = seq(from = -9,
+                 to = 9.5,
+                 by = 1), 
+    labels = scales::number_format(accuracy = 0.1, decimal.mark = '.'))
+  
+```
+**I `lower` plottet kan man se de fire nivåene i atmosfæren, og dems gjennomsnittlig temperaturendring fra 1977 til 2021. Det er også lagt inn gjennomsnittlig endring av de 4 nivåene av atmosfæren. Det man ser at det er større temperaturvariasjon i den nedre atmosfæren i forhold til de andre nivåene av atmosfæren. De 2 øverste nivåene av atmosfæren kan man tyde at har en gjennomsnittlig temperaturvariasjon som ligger rundt +- 0 grader celsius**
+
+
+## **Kilder**
+
+**https://github.com/uit-sok-1004-h21/uit-sok-1004-h21.github.io/blob/main/global_temp_F4.R**
+
+**https://r4ds.had.co.nz/data-import.html**
+
+**http://mgimond.github.io/ES218/Week04c.html#geom_point**
+
+**https://epirhandbook.com/en/ggplot-tips.html**
+
+
