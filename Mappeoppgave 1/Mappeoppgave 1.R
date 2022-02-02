@@ -1,30 +1,37 @@
+#laster ned nødvendige pakker:
 library(tidyverse)
-library(lubridate)
-library(zoo)
-library(janitor)
-library(plyr)
+library(zoo) #Brukes for å lage rullende gjennomsnitt
+library(dplyr) #Brukes for å kunne gjøre chr om til num.
+library(lubridate) #Brukes for å formartere dato
 
-#Oppgave 1.
+#Kilde til datasettet:
+#https://www.drroyspencer.com/latest-global-temperatures/
 
-lower <- 
-  read_table("https://www.nsstc.uah.edu/data/msu/v6.0/tlt/uahncdc_lt_6.0.txt") %>% 
-  .[1:which(.$Year %in% "Year")-1, ] %>% 
-  clean_names() %>% 
-  .[ , 1:3] %>%  
-  mutate(dato = ymd(paste(.$year, .$mo, 1, sep = "-"))) %>% 
-  mutate_if(is.character, ~as.numeric(.)) %>% 
-  select(dato, globe) %>% 
-  mutate(glidende_snitt = rollmean(globe, 13, fill = NA, align = "center")) 
 
-lower %>% 
-  ggplot(aes(x=dato, y=globe)) + 
-  geom_line(col="blue") + 
+#Oppgave 1
+
+#Henter tabellen og rfjerne verider som mangler:
+lower_tropo <- read_table("http://vortex.nsstc.uah.edu/data/msu/v6.0/tlt/uahncdc_lt_6.0.txt") 
+  
+
+#Lager et gjennoomsnitt og gjør Globe om fra karateisk til numerisk.
+#Gjør sånn at dato blir en egen kolonne:
+lower_tropo <- lower_tropo %>% 
+  slice(1:(n()- 12)) %>% #[1]
+  mutate_if(is.character,as.numeric) %>% #[2]
+  mutate(Date = dmy(paste(1, Mo, Year, sep = "/"))) %>% #[3]
+  mutate(gjennomsnitt = rollmean(Globe, 13, fill = NA, align = "right")) %>% #[4] 
+  select(Globe, Date, gjennomsnitt) 
+
+
+lower_tropo %>%  
+ggplot(aes(x=Date, y=Globe)) + 
+  geom_line(col="dodgerblue4", alpha = 0.8) + 
   theme_bw() +
-  geom_point(shape=1,col="blue") +
-  geom_line(aes(y=glidende_snitt), col="red", lwd=1.2) + 
+  geom_point(shape=1,col="blue", alpha = 0.5) +
+  geom_line(aes(y=gjennomsnitt), col="red2", lwd=1.3, alpha = 0.8) + 
   labs(x = "Latest Global Average Tropospheric Tempratures", 
-       y = "T Depature from 91-20 Avg. (deg.C)", 
-       title = "UAH Satellite-Based Temperatureog the Global Lower Atmosphere (Version 6.0)") + 
+       y = "T Depature from 91-20 Avg. (deg.C)") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   scale_x_date(date_breaks = "1 years", date_labels = "%Y") + 
   scale_y_continuous( 
@@ -33,37 +40,47 @@ lower %>%
                  to = 1,
                  by = 0.1), 
     labels = scales::number_format(accuracy = 0.1, decimal.mark = '.'))
+         
+ 
 
-#Oppgave 2:
+#OPPGAVE 2: 
 
-scrape_bake <- function(url, location) {
-  return(read_table(url) %>% 
-           .[1:which(.$Year %in% "Year")-1, ] %>% 
-           clean_names() %>% 
-           mutate(dato = ymd(paste(.$year, .$mo, 1, sep = "-"))) %>% 
-           mutate_if(is.character, ~as.numeric(.)) %>% 
-           mutate(nivå = paste0(location)))
-}
-url_list <- list("http://vortex.nsstc.uah.edu/data/msu/v6.0/tlt/uahncdc_lt_6.0.txt",
-                 "http://vortex.nsstc.uah.edu/data/msu/v6.0/tmt/uahncdc_mt_6.0.txt",
-                 "http://vortex.nsstc.uah.edu/data/msu/v6.0/ttp/uahncdc_tp_6.0.txt",
-                 "http://vortex.nsstc.uah.edu/data/msu/v6.0/tls/uahncdc_ls_6.0.txt")
-location_list <- list("Lower Tropos","Mid-Tropos", "Tropop", "Lower Stratos")
+#Laster ned dataen, og gjør dem om fra chr til num.
+data_lower <- read_table("http://vortex.nsstc.uah.edu/data/msu/v6.0/tlt/uahncdc_lt_6.0.txt") %>%
+  mutate_if(is.character,as.numeric) %>%
+  mutate(nivå = "lower")
 
-d.frame <- map2(url_list, location_list, scrape_bake)
-d.frame <- ldply(d.frame, data.frame)
-d.frame <- d.frame %>%  
-  select(dato, no_pol, nivå) %>% 
-  as_tibble() %>% 
-  mutate(gj.snitt.alle = rollmean(no_pol, 13, fill = NA, align = "center"))
+data_mid <- read_table("http://vortex.nsstc.uah.edu/data/msu/v6.0/tmt/uahncdc_mt_6.0.txt") %>% 
+  mutate_if(is.character,as.numeric) %>%
+  mutate(nivå = "mid")
 
-ggplot(d.frame, aes(x = dato, y = no_pol, color = nivå)) + 
+data_trop <- read_table("http://vortex.nsstc.uah.edu/data/msu/v6.0/ttp/uahncdc_tp_6.0.txt") %>% 
+  mutate_if(is.character,as.numeric) %>%
+  mutate(nivå = "trop")
+
+data_lower_strat <- read_table("http://vortex.nsstc.uah.edu/data/msu/v6.0/tls/uahncdc_ls_6.0.txt") %>%
+  mutate_if(is.character,as.numeric) %>%
+  mutate(nivå = "lower_strat")
+
+#Slår alle datasettene sammen til én.
+data_atmos <- data_lower %>% 
+  rbind(data_mid, data_trop, data_lower_strat)
+
+#Gjør noen forbedringer i datasettet, og henter ut de verdiene vil skal jobbe videre med.
+data_atmos <- data_atmos %>%
+  slice(1:(n() - 12)) %>%
+  select(year = Year, month = Mo, NoPol, nivå) %>%
+  mutate(Date = dmy(paste(1, month, year, sep = "/"))) %>% 
+  mutate(mean_alle = rollmean(NoPol, 13, fill = NA))
+
+data_atmos %>% 
+  ggplot(aes(x = Date, y = NoPol, color = nivå)) + 
   geom_line(linetype = "dashed", lwd=0.9) + 
   theme_bw() + 
   geom_point(shape = 1) + 
-  geom_line(aes(y=gj.snitt.alle), col="yellow", lwd = 0.2) + 
+  geom_line(aes(y=mean_alle), col="yellow", lwd = 0.2, alpha = 0.8) + 
   ggtitle("Temperaturen på fire nivå av atmosfæren i området 60°- 90° nord \n med gjennomsnitt ") + 
-  labs(y="Temperatur (deg.C)", x="Gjennomsnittlig temperaturendring") +
+  labs(y="Temperatur (deg.C)", x="Dato") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   scale_x_date(date_breaks = "2 years", date_labels = "%Y") + 
   scale_y_continuous( 
@@ -72,19 +89,12 @@ ggplot(d.frame, aes(x = dato, y = no_pol, color = nivå)) +
                  to = 9.5,
                  by = 1), 
     labels = scales::number_format(accuracy = 0.1, decimal.mark = '.'))
-  
+         
 
-
-
-
-
-
-
-
-
-
-
-
+#[1] https://statisticsglobe.com/remove-bottom-n-rows-from-data-frame-in-r
+#[2] https://www.rdocumentation.org/packages/zoo/versions/1.8-9/topics/rollmean
+#[3] https://stackoverflow.com/questions/22772279/converting-multiple-columns-from-character-to-numeric-format-in-r
+#[4] https://stackoverflow.com/questions/60610586/converting-3-columns-day-month-year-into-a-single-date-column-r
 
 
 
