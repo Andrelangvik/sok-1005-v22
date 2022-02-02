@@ -1,0 +1,86 @@
+---
+title: "Mappeoppgave 2"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+author: "Andre Langvik"
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+---
+
+# Mappeoppgave 2
+
+
+## Oppgave 1
+
+```{r, my_df,  warning=FALSE, message=FALSE}
+library(rjson)
+library(tidyverse)
+
+jsondata <- 
+  fromJSON(file = "https://static01.nyt.com/newsgraphics/2021/12/20/us-coronavirus-deaths-2021/ff0adde21623e111d8ce103fedecf7ffc7906264/scatter.json")
+
+my_df <- do.call(rbind.data.frame, jsondata)
+my_df <- my_df %>% 
+  rename(fully = fully_vaccinated_pct_of_pop)
+
+ggplot(my_df, aes(x=fully, y=deaths_per_100k, label = name)) + 
+  geom_point(color = "#9AC0CD", size = 2) + theme_bw() + 
+  geom_text(hjust=0.5, vjust=-1, size = 2) + 
+  annotate(geom="text", x=0.73, y=9, 
+           label="Higher vaccination rate, \n lower death rate -->",
+           color="black", size = 3) + 
+  annotate(geom="text", x=0.58, y=17, 
+           label="Lower vaccination rate, \n <-- higher death rate",
+           color="black", size  = 3) + 
+  scale_x_continuous(labels = scales::percent, 
+                     breaks = seq(from = 0,
+                                  to = 1,
+                                  by = 0.05)) + 
+  labs(title = "Covid-19 deaths since universal adult vaccine eligibility compared\n                                  with vaccination rates \n 
+       
+       20.avg. montlhy deaths per 100,000",
+       x = "Share of total population fully vaccinated", 
+       y = " ")
+```
+
+
+**I plottet så ser man at det er en klar sammenheng mellom grad av vaksiniasjon i befolkningen og dødsfall. Man ser at dem som har en høy vaksinasjonsgrad i befolkningen har lavere dødsrate per 100 000 enn dem som ikke har like høy vaksiniasjonsgrad.**
+
+\newpage
+
+## Oppgave 2
+```{r}
+print(lm(fully ~ deaths_per_100k, data = my_df)) 
+```
+
+**Her kan man se at avskjæringen er 0,7521 og at kofferisenten for dødsraten er - -0,01665. Dette forteller oss at den antatte dødsraten vil synke fremover som en konsekvens av at flere bli vaksinert.**
+
+
+## Plotten
+```{r, warning=FALSE, message=FALSE}
+
+ggplot(my_df, aes(x=fully, y=deaths_per_100k, label = name,
+                  lm(deaths_per_100k ~ fully, data = my_df)))+ 
+  geom_point(color = "#9AC0CD", size = 2) + theme_bw() + 
+  geom_smooth(method="lm", color = "grey") +
+  geom_text(hjust=0.5, vjust=-1, size = 2) + 
+  annotate(geom="text", x=0.73, y=9, 
+           label="Higher vaccination rate, \n lower death rate -->",
+           color="black", size = 3) + 
+  annotate(geom="text", x=0.58, y=17, 
+           label="Lower vaccination rate, \n <-- higher death rate",
+           color="black", size  = 3) + 
+  scale_x_continuous(labels = scales::percent, 
+                     breaks = seq(from = 0,
+                                  to = 1,
+                                  by = 0.05)) + 
+  labs(title = "Covid-19 deaths since universal adult vaccine eligibility compared with\n 
+                                                    vaccination rates \n 
+       
+       20.avg. montlhy deaths per. 100,000",
+       x = "Share of total population fully vaccinated", 
+       y = " ")
+```
+
+**I plottet med "lm" så ser man at dødsfallene faller jo høyere vaksinasjonsgrad det er. samtidig så ser vi variasjonsbredden i den linære linjene som tar med seg observasjonene som er langt vekke fra den fallende gjennomsnittet.**
