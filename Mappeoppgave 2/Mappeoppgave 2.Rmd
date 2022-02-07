@@ -7,8 +7,9 @@ output:
     toc: true
     toc_depth: 2
 ---
+### Denne oppgaven er et samarbeid med Mathias Hetland og Martin Smedstad.
 
-# Mappeoppgave 2
+### Data er hentet fra: https://www.google.com/url?q=https://www.nytimes.com/interactive/2021/12/28/us/covid-deaths.html?referrer%3Dmasthead&sa=D&source=editors&ust=1644234977091080&usg=AOvVaw00_blMkR02X-EK6wqudZLF
 
 
 ## Oppgave 1
