@@ -85,3 +85,9 @@ ggplot(my_df, aes(x=fully, y=deaths_per_100k, label = name,
 ```
 
 **I plottet med en lm at dødsfallene faller jo høyere vaksinasjonsgrad det er. samtidig så ser vi variasjonsbredden i den linære linjene som tar med seg observasjonene som er langt vekke fra den fallende gjennomsnittet.**
+
+
+## Kider: 
+
+
+

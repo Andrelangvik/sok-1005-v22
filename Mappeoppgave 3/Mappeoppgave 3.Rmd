@@ -1,0 +1,89 @@
+---
+title: "Mappeoppgave 3"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+author: "Andre Ydstebø Langvik"
+output: pdf_document
+---
+
+## Oppgave 1
+
+**Denne oppgaven er gjort i et samarbeid med Mathias Hetland og Martin Smedstad, Data er hentet fra: https://www.motor.no/aktuelt/motors-store-vintertest-av-rekkevidde-pa-elbiler/217132**
+
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(rvest)
+library(dplyr)
+
+#Laster ned html-en:
+link <- read_html("https://www.motor.no/aktuelt/motors-store-vintertest-av-rekkevidde-pa-elbiler/217132")
+
+#Henter ut tabellen og fjerner rader og kolonner som ikke skal være med, og verdier uten tall:
+tabellen <- link %>% 
+  html_node("body") %>% 
+  html_table(header = TRUE) 
+```
+
+
+```{r oppgave 1, warning=FALSE, message=FALSE}
+#Fjerner ting som ikke skal være med i observasjonene og rydder opp i tabellen: 
+tabellen <- tabellen %>% 
+  select(modell = starts_with("Modell"), wltp = starts_with("WLTP"), stopp = STOPP, avvik = Avvik) %>% 
+  slice(-c(19, 26)) %>% 
+  slice((1:(n()- 34))) %>% 
+  separate(wltp, sep = "/", into = c("wltp", "kWh")) %>% 
+  mutate_at("stopp", str_replace, "km", "") %>% 
+  mutate_at("wltp", str_replace, "km", "") %>% 
+  mutate_at("wltp", str_replace, "kWh", "") %>% 
+  mutate_at("avvik", str_replace, "%", "") %>%
+  mutate(avvik = str_replace(avvik, ",", "."), 
+         kWh = str_replace(kWh, ",", "."))
+
+#gjør 3 av 5 kolonner om til numeric fra charatcer. 
+tabellen$stopp <- as.numeric(tabellen$stopp)
+tabellen$wltp <- as.numeric(tabellen$wltp)
+tabellen$avvik <- as.numeric(tabellen$avvik)
+
+str(tabellen)
+```
+
+```{r plottet, warning=FALSE, message=FALSE}
+
+ggplot(tabellen, aes(x=wltp, y=stopp)) + 
+  geom_point() + 
+  theme_bw() + theme_classic() +   
+  scale_x_continuous(breaks = seq(from = 200, to = 600, by = 100), limits = c(200, 600)) +
+  scale_y_continuous(breaks = seq(from = 200, to = 600, by = 100), limits = c(200, 600)) + 
+  geom_abline(size = 0.5, col  ="red") + 
+  labs(title = "Forhold mellom oppgitt kjørelengde og faktsik kjørelengde", 
+       x = "WLTP - oppitt kjørelengde ", 
+       y = "Stopp - faktisk kjørelengde")
+
+```
+
+**I denne figuren ser man faktisk kjørelengde til bilene i denne testen, og hva som var forventet kjørelengde.**
+
+
+
+
+## Oppgave 2:
+
+```{r lm, warning=FALSE, message=FALSE}
+print(lm(stopp ~ wltp, data = tabellen))
+```
+
+
+```{r plot, warning=FALSE, message=FALSE}
+ggplot(tabellen, aes(x=wltp, y=stopp)) + 
+  geom_point() + 
+  theme_bw() + theme_classic() +   
+  scale_x_continuous(breaks = seq(from = 200, to = 600, by = 100), limits = c(200, 600)) +
+  scale_y_continuous(breaks = seq(from = 200, to = 600, by = 100), limits = c(200, 600)) + 
+  geom_abline(size = 0.5, col  ="red") + 
+  labs(title = "Forhold mellom oppgitt kjørelengde og faktsik kjørelengde \n - med en linærregrisjon", 
+       x = "WLTP - oppitt kjørelengde ", 
+       y = "Stopp - faktisk kjørelengde") + geom_smooth(method = lm, color = "red")
+
+```
+
+**I dette plottet kan man se at den faktsike kjørelengden ligger et lite stykke under den forventet kjørelengden, det er forventet da for hver forventet km kjørelengde, så vil da bilen faktiske kjøre 87% av den km-en.**

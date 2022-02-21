@@ -1,6 +1,8 @@
 library(rjson)
 library(tidyverse)
 
+#Denne oppgaven er et samarbeid med Mathias Hetland og Martin Smedstad.
+
 #henter ut JSON-filen fra nettsiden:
 jsondata <- 
   fromJSON(file = "https://static01.nyt.com/newsgraphics/2021/12/20/us-coronavirus-deaths-2021/ff0adde21623e111d8ce103fedecf7ffc7906264/scatter.json")
