@@ -87,3 +87,6 @@ ggplot(tabellen, aes(x=wltp, y=stopp)) +
 ```
 
 **I dette plottet kan man se at den faktsike kjørelengden ligger et lite stykke under den forventet kjørelengden, det er forventet da for hver forventet km kjørelengde, så vil da bilen faktiske kjøre 87% av den km-en.**
+
+### Kilder:
+**[1]https://datascience.stackexchange.com/questions/15589/remove-part-of-string-in-r,[2]https://www.statology.org/character-to-numeric-in-r/**
