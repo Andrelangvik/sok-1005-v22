@@ -1,0 +1,321 @@
+---
+title: "Prosjektoppgave"
+date: "07-06-22"
+author: "Kandidatnr: 1, 35, 12"
+output:
+  pdf_document:
+    toc: true
+    
+---
+
+
+
+---
+
+**Inspirasjon til oppgaven er hentet fra: https://rpubs.com/jeonsan01/765861?fbclid=IwAR0H8JpghkIfYaNEPdxSAflGEf_FfGYX-xxnZ-MjBtwivL9DHtqEdrzoJHE av Jeon Sean, https://r4ds.had.co.nz/ av R4DS**
+
+---
+
+
+\newpage
+
+
+```{r, warning=FALSE, message=FALSE}
+# laster inn pakker
+library(tidyverse)
+library(lubridate)
+library(rlist)
+library(gridExtra)
+library(zoo)
+library(tm)
+library(ggthemes)
+library(treemapify)
+library(DataExplorer)
+
+```
+
+# Datasett
+
+---
+
+**Lager et samlet datasett for å kunne håndtere dataene på en bedre måte, slik at det er gjør det enklere å kunne presentere data**
+
+---
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+
+
+#Laster ned dataen
+list(weather <- read.csv("https://data.mendeley.com/public-files/datasets/6htjnfs78b/files/1c8b07af-37e6-4ff2-a37c-630cb1d22951/file_downloaded"),
+     sales <- read.csv("https://data.mendeley.com/public-files/datasets/6htjnfs78b/files/ace0005d-bcfb-46b9-aaff-d69294b11e0c/file_downloaded"),
+     work <- read.csv("https://data.mendeley.com/public-files/datasets/6htjnfs78b/files/846ac757-721e-4fd9-a414-5871f60de093/file_downloaded"),
+     county <- read.csv("https://data.mendeley.com/public-files/datasets/6htjnfs78b/files/527e7486-7233-460a-99e0-3529b7cd7d49/file_downloaded"),
+     crime <- read.csv("https://data.mendeley.com/public-files/datasets/6htjnfs78b/files/3691994e-2874-4ee6-b215-12e130c96175/file_downloaded"),
+     store <- read.csv("https://data.mendeley.com/public-files/datasets/6htjnfs78b/files/26afd5e7-90b1-4301-ac5e-5905b38c4ec2/file_downloaded"))
+
+
+#Slår sammen 3 datasets som har "County_Name" som felles kollone.
+df_1 <- list(county, crime, work)
+df_1 <- reduce(df_1, full_join, by='County_Name')
+
+#df6 <- inner_join(county, crime, work, by = 'County_Name')
+#Slår sammen 2 datasets som har "Store_Num" som felles kollone.
+df_2 <- merge(x=store, y=sales, by.x="Store_Num", by.y="Store_num")
+
+#Formaterer dato kolonen til date, og lager en ny kolone med ukenummmer
+df_2 <- df_2 %>%
+  mutate(ID = as.Date(Date, format = "%m/%d/%y")) %>% 
+  mutate(week = week(ID))
+
+#Endrer navn på kolonner
+weather <- weather %>% 
+  rename(week = Weather_Week,
+         Store_Weather_Station = Weather_Station)
+
+#Slår sammen df_2 med weather, med felles kolonnene "week", og "weather_station") 
+df_2 <- merge(df_2, weather, by = c("week", "Store_Weather_Station"))
+
+#Slår sammen datafrmene med felles kolonnene "County", og får en datafram med alle datasetsa 
+df_2 <- merge(x=df_2, y=df_1, by.x="Store_County", by.y="County_Name")
+
+
+```
+
+
+
+# Ukentlig salgsrapport: Uke 31
+
+---
+
+**I en ukentlig salgsrapport har vi valgt å ta utgangspunkt i River City StripMall i River County. Vi mener det da vil være viktig å se på data du enkelt kan gjøre tiltak med. Vi snakker da om hvilket produkt som selger mest, der vi også vil se på en sammenligning med en annet utsalgssted i samme fylke. Produkter er en variabel man kan gjøre enkle og gode tiltak med raskt for å skape større lønnsomhet. Dette vil derfor være sentralt i denne rapporten, fordi man kan f.eks. kjøre en kampanje på de produktene som er mest populær for å øke omsetningen eller fokusere driften mer på disse produktene. Andre faktorer som er viktig å se på, er hvordan forholdene mellom inntekt og kostand er, altså profitten, dette vil også bli sammenlignet med et annet utsalgssted for å kunne få et inntrykk av hvordan River City Stripmall ligger an i fylket. Vi vil også ta med en graf der man tar gjennomsnitts ukesalg for hele konsernet og sammenligner det med vårt utsalg, for å kunne se hvordan utsalget gjør det sammenlignet med resten av kosernet.** 
+
+---
+
+```{r, warning=FALSE, message=FALSE}
+#Henter ut informasjon med filter som trengs i oppgaven (butikk, uke, osv.)
+
+df_3 <- df_2 %>% 
+  filter(Store_Name == "River City StripMall" | Store_Name == "University Town BigBox",  
+         Month == 7 | Month == 8, Year == 2012,
+         week == 31, Price >= 0, Cost >= 0, Sold >= 0) #Fjerner observersjoner som  
+#potensielt er feil registrer
+
+#Lager et plott over det 10 mest solgte varene i "River City StripMall"
+plt1 <- df_3 %>% 
+  filter(Store_Name == "River City StripMall") %>% #Filtrerer ut butikken
+  arrange(desc(Sold)) %>% #Sorterer etter mest solgte 
+  slice(1:10) %>% #Velger de 10 første
+  ggplot(aes(x=Sold, y=Description))+ #Plotter solgt og vare
+  geom_col() +
+  theme_few() + ggtitle("River City Mall topp 10 solgte produkter") + #Legger til tittel
+  xlab("Solgt enheter") + ylab("Produkter") #Legger til navn på akser
+
+#Lager et plott over det 10 mest solgte varene i "University Town BigBox"
+plt2 <- df_3 %>% 
+  filter(Store_Name == "University Town BigBox") %>%  #Filtrerer ut butikken 
+  arrange(desc(Sold)) %>%  #Sorterer etter mest solgte 
+  slice(1:10) %>% #Velger de 10 første
+  ggplot(aes(x=Sold, y=Description)) + #Plotter solgt og vare
+  geom_col() +
+  theme_few() + ggtitle("University Town topp 10 solgte produkter") + #Legger til tittel
+  xlab("Solgte enheter") + ylab("Produkter") #Legger til navn på akser
+
+#Bruker "grid.arrange" funksjonen til å få plottene under hverandre
+grid.arrange(plt1,plt2)
+
+```
+
+**Det plottet representerer topp 10 produkter som blir solgt i River City StripMall(RCS) og sammenligner det med University Town(UT). Det plottet viser oss er at chips er det produktet som RCS selger mest av, mens UT selger mest av 21OZ Drink, noe som er det nest mest solgte produktet til RCS. Det kommer fram at RCS selger generelt mer produkter enn UT. Disse produktene selges det mest av, noe som kan tyde på at populariteten av disse er stor. Bedriften burde derfor utnytte dette, ved å sette prisen på disse varene noe opp. Man vil da kunne øke inntektene, uten å risikere for høye reduksjoner i salg. Dette er et tiltak som vil øke profitten. Det vil også kunne være mulig å kjøre kampanjer på disse varene for å øke salget, og dermed profitten.**
+
+```{r}
+#Lager et plott av inntekter, kostnader og profit
+
+df_3$Annual_Rent_Estimate <- as.numeric(as.character(df_3$Annual_Rent_Estimate)) #endrer kolone til numeric
+
+df_3 %>% 
+  select(Date, Sales, Cost, Profit, Store_Name, Annual_Rent_Estimate) %>% # velger dataen som trengs
+  group_by(Store_Name) %>% 
+  mutate(profit = sum(Profit) - Annual_Rent_Estimate/52, 
+         cost = sum(Cost), 
+         sales = sum(Sales)) %>% 
+  pivot_longer(cols=c(profit, cost, sales)) %>% #Lager et langt dataset basert på inntekter, kostnader og profitt
+  slice(1:3) %>% #tar de 3 første radene
+  group_by(name)%>% # grupperer etter navn
+  ggplot(aes(x=Store_Name, y=value, fill=name)) + # plotter plottet
+  geom_col() +
+  theme_bw() + 
+  theme(axis.title.x=element_blank(), # fjerner navn på x akse
+        axis.ticks.x=element_blank()) + 
+  ylab("Verdi i dollar ($)") + ggtitle("Nøkkeltall for utsalgene") + 
+  theme(legend.title = element_blank())#pynter plottet
+  
+
+```
+
+**Nøkkeltallene for RCS og UT viser oss en struktur på kostand og salg, og profitt oppgitt i dollar med husleien som fast kostand trukket ifra profitten. RCS har mer kostnader og salg enn UT, noe som er veldig positivt for profitten blir fortsatt større selv om RCS har høyere faste kostnader. Man ka da ser at River City StripMall driver mer lønnsomt, men at de faste kostnadene driver profitten en del ned. Dette ser vi gjennom at costnadene er relativt små forhold til inntekten, noe som ikke er represnativt gjennom profitten.**
+
+```{r, warning=FALSE, message=FALSE}
+
+df_2 %>% 
+  filter(Store_Name == "River City StripMall", Sales >= 0) %>% 
+  select(Sales, Date, Store_Name, week) %>% #Vegler datavariablene
+  group_by(week) %>% #Gruppere etter uke
+  mutate(Salg_Uke31_RCS = mean(sum(Sales))) %>% #Lager gjennomsnittssalg
+  ungroup() %>% #Ugruppere etter uke 
+  mutate(Gjennomsnittlig_salg = mean(Salg_Uke31_RCS)) %>% #Lager forventet gjennomsnittsinntekt
+  filter(week == 31) %>% 
+  pivot_longer(cols=c(Salg_Uke31_RCS, Gjennomsnittlig_salg)) %>% #Lager et langt datasett
+  slice(1:3) %>% #Velger de tre første radene
+  ggplot(aes(x=name, y=value)) + #plotet dataen 
+  geom_col() + theme_bw() + ylab("Verdi i dollar($)") +
+  xlab(" ")
+```
+**Plottet viser at gjennomsnittsinntekt for en uke for hele konsernet, noe som gir en forventningsverdi på hvor stort ukesalget bør være. RCS viser knallsterkt salg i uke 31, og utslaget selger mer enn det som er forventet ukesalg i konsernet, noe som er veldig positivt.**
+
+---
+
+
+\newpage
+
+# Måndtlig salgsrapport: August
+
+---
+
+**I en månedlig salgsrapport til konsernledelsen mener vi bør inneholde en inntektsfordeling på fylkes nivå, for å se hvordan inntektsgrunnlaget til konsernet er fordelt. Vi vil også se på profittene til de forskjellige utsalgene, for å få et klart bilde på hvor lønnsomheten er størst, deretter se på endringen i profitt fra tidligere måned. Dette gjør at vil vil kunne se utvikligen i trenden. Den månedlige salgsrapporten vil ta utgangspunkt i september, siden der er en spennende måned for å som om det skjer noe med salg når skolen har startet igjen. Siste som kan være viktig å se på i en månedsrapport vil være å se hvilket utsalg som mest salg per innbygger. Dette for å se hvor fremtidig intern utvikling bør fokuseres.**
+
+---
+
+```{r}
+df_4 <- df_2 %>% 
+  filter(Month == 9, Year == 2012, Price >= 0, Cost >= 0, Sold >= 0)#Filtrer ut måned og år, og proftt over eller lik 0
+
+#Lager et nytt datasett med nødvendig data
+inntekt_summary <- df_4%>%
+  group_by(Store_County) %>% #Grupere data
+  summarise( Total_revenue = sum(Sales)) %>% #Regner ut total salg 
+  summarise( percent_revenue = Total_revenue/sum(Total_revenue), 
+            Total_revenue = Total_revenue, Country = Store_County) #Velger data og regner ut prosent av inntekt
+
+inntekt_summary <- inntekt_summary %>% 
+  mutate(labels = paste(Country, paste(round(percent_revenue,2)*100,'%') , sep =' '))#Lager labels
+
+#Plotter fremstillingen
+inntekt_summary %>%
+  ggplot(aes(area = Total_revenue, fill = Country, label = labels)) +
+  geom_treemap() +
+  geom_treemap_text(fontface = "bold", colour = "white", place = "centre", grow = TRUE) + 
+  #Pynter teksten 
+  theme(legend.position = "none") +
+  labs(title = 'Sammenligning av inntekt by County') + #legger til overskrift og undertekst
+  labs(subtitle = 'En inntektsfordeling som er dominert av Power County') +
+  theme(plot.title = element_text(size = 20, face = "bold"), #pynter teksten
+        plot.subtitle = element_text(size = 12))
+
+
+```
+
+**Som man ser i plottet så er det Power County som står for en stor del av inntekten til konsernet med hele 37%, med Farm County et lite stykke bak med 22%. Dette er viktig for konsernet skal få tydelig bilde på hvilket County som er mest lønnsom, og hvor det ikke er like lønnsomt å ha utsalg. Man finner da hvor man bør fokusere på å øke inntektene, som i dette tilfelle ville vært Rail County** 
+
+```{r}
+df_5 <- df_2 %>% 
+  filter(Month == 9, Year == 2012, Price >= 0, Cost >= 0, Sold > 0)
+
+df_5 %>%
+  select(Date, Sales, Cost, Profit, Store_Name, week) %>% #Velger kolonner som trengs
+  group_by(Store_Name, week) %>% #Grupperer dataen 
+  mutate(Profit = sum(Profit)) %>% #Regener ut samlet hver uke
+  ggplot(aes(x=week, y=Profit, color = Store_Name)) + #Plotter plotet
+  geom_line() +
+  theme_bw() +
+  scale_x_continuous(breaks = seq(from = 35, to = 40, by=1)) +#Setter avstander på x-aksen
+  xlab("Uke") + ylab("Profitt i dollar($)") + ggtitle("September profitt for alle utsalgene")
+
+```
+
+**I dette plottet som viser en oversikt over ukesalget i august, gir oss et klart inntrykk over hvilket utsalg som har den største profitten i konsernet. Detter er viktig å få med siden det gir et overblikk på hvilket utsalg som gjør det bedre, og fra tidligere figur kunne man se at Power County var det fylket som ga mest inntekt til konsernet. Det kommer frem her at utsalget Power City FreeStand i Power County som driver mest lønnsomt i konsernet. Power City FreeStand er det eneste utsalget som ikke har en tilhørighet til et StripMall eller BigBox, noe som kan gi en indikasjon på at mer profitt å hente, når utsalget ikke har tilknytning til et kjøpesenter. Det kan se ut som at trenden i profitten for utsalgene er stigende i September.**
+
+
+```{r}
+df_2 %>%
+  filter(Price >= 0, Cost >= 0, Sold > 0,
+         Month == 9 | Month == 8) %>% #Filterer dataen
+  select(Date, Sales, Cost, Profit, Store_Name, week) %>% #velger kolonner som trengs
+  group_by(Store_Name, week) %>% # grupperer dataen 
+  mutate(Profit = sum(Profit)) %>% # regener ut samlet hver uke
+  ggplot(aes(x=week, y=Profit, color = Store_Name)) + #plotter plotet
+  geom_line() +
+  theme_bw() +
+  scale_x_continuous(breaks = seq(from = 31, to = 40, by=1)) + # setter avstander på x-aksen
+   xlab("Uke") + ylab("Profitt i dollar($)") + ggtitle("August og September profitt for alle utsalgene")
+```
+
+**Dette plottet viser oss utviklingen i profitt fra måneden før og ut September, her kan man se at utsalgene hadde høyt nivå på profitten. Uken før September måned startet så opplevde alle utsalgene en kraftig reduksjon i profitt, noe som kan ha en sammenheng med at skolen hadde da startet, og det virker som om handlingsmønsteret til konsumentene endret seg drastisk. Utover September ser man at konsumet begynner å gå opp igjen etter som profitten stiger igjen, noe som kan gi en indikasjon på at konsumet øker igjen, eller at utsalgene reduserer kostnadene sine.**
+
+
+```{r}
+df_2 %>% 
+  filter(Month == 9, Price >= 0, 
+         Cost >= 0, Sold > 0) %>% #Filterr ut måneden og data som er potensielt feil
+  select(Sales, Date, Store_Name, week,Month, Sold, Profit, 
+         County_Total_Census_Pop) %>% #Velger kolonner 
+  group_by(Store_Name) %>% #Grupperer etter navn på utsalg
+  mutate(penger_brukt = sum(Sales)/County_Total_Census_Pop) %>% 
+  #Regner ut hvor innbyggerne legg igjen mest penger
+  ggplot(aes(y=Store_Name, x=penger_brukt)) + #Plotter dataen og pynter 
+  geom_col() + ylab("Utsalg") + 
+  xlab("Inntekt per innbygger i dollar ($)") + 
+  ggtitle("Inntekt per innbygger etter utsalg") +
+  theme_bw()
+
+```
+**Dette plottet viser oss inntekten utsalgene har per innbygger i fylket, som gir et klart bilde til konsernet på hvor innbyggerne konsumerer mest. Resultatet kan gi konsernet en pekepinn på hvor det kan være lurt å legge inn ressurser for å opprettholde salget, eller å videreutvikle salget som allerede er. North Town SprilMall i Farmer County har en inntekt som viser at innbyggerne har en betalingsevne og vilje, samtidig så er Power County som hadde den største inntekten til konsernet, representert med Power City Freestand**
+
+\newpage
+
+
+# Potensiell etbalering av nytt utsalg
+
+---
+
+**Ved en mulig nyetablering av nytt utsalg, så vil vi se på forhold man kan gjøre noe med for å sikre mest mulig lønnsomhet. Eksempelvis som lokasjon av utsalget og hva som korrelere positivt med profitt. Det som vil være viktig og er å treffe rett tidspunkt ved etablering, så man vil da sjekka om hvilken måned er det kundene generelt handler mest. Vi vil også dra inn resultater fra måneds, - og ukesrapporten for å kunne presisere våre tanker om et nytt utsalg bør bli etablert.**
+
+---
+
+```{r, warning=FALSE, message=FALSE}
+plotkorrelasjon2 <- df_2 %>% select(Store_Location, 
+                                    Store_Drive_Through, Profit, Store_Near_School, 
+                                    Store_Competition_Fastfood)
+
+plt7 <- plot_correlation(
+  plotkorrelasjon2,
+  type = ("all"),
+  ggtheme = theme_bw(),
+  theme_config = list(legend.position = "bottom", 
+                      axis.text.x = element_text(angle = 90)))
+```
+**Dette plottet viser oss hvordan profitten korrelerer med andre variabler som er viktig å tenke igjennom før man etablerer et nytt utsalg. Korrelasjon er et statiske mål på hvor mye to målbare størrelser henger sammen med hverandre og er fra -1 til 1 som beskriver negativ eller positiv korrelasjon. Dataen som blir presentert viser oss at profitten korrelerer positivt når utsalget ligger nærme en skole, har en Drive trough og har plassering som ikke har en tilhørighet til et kjøpesenter. Hvis man tar utgangspunkt i et frittstående utsalg, vil det være optimalt å ha en Drive trough samtidig ha en nærhet til en skole. Dette er informasjon som vil være viktig å tenke på ved nyetablerig** 
+
+
+```{r, warning=FALSE, message=FALSE}
+#Plotter profiten til utsalgene i løpet av et år
+df_2 %>%
+  select(Date, Sales, Cost, Profit, Store_Name, week, Month) %>% #velger kolonner som trengs
+  group_by(Store_Name, Month) %>% # grupperer dataen 
+  mutate(Profit = sum(Profit)) %>% # regener ut samlet hver uke
+  ggplot(aes(x=Month, y=Profit, color = Store_Name)) + #plotter plotet
+  geom_line() +
+  theme_bw() +
+  scale_x_continuous(breaks = seq(from = 1, to = 12, by=1)) +  # setter avstander på x-aksen
+  ylab("Profitt") + xlab("Måned") + #Pynter plottet
+  ggtitle("Profitt utvikling alle utsalg desiste 12 månedene")
+```
+**Plottet viser en oversikt over profittutviklingen gjennom hele året for utsalgene i konsernet. Resultatet viser oss at det typisk er større profitt i de klassiske feriemånedene, som i April når det er påske, juni og juli når det er sommerferie, mens etter sommeren er det en markant nedgang i profitt frem til julesesongen starter og man får en plutselig vekst i profitten. For en ny etablering vil tidspunktet for åpning være avgjørende for å utnytte betalingsviljen i markedet best mulig. Vår anbefaling vil være å etablere et nytt utsalg når påsken starter, for plottet viser oss at da er profittnivået høyest, noe som kan indikere at kundene kjøper mest fra samtlige utsalg i April.**
+
+
+## Konklusjon:
+
+**Ved en nyetablering vil vi anbefale å legge et nytt utsalg i Farmer County, selv om Power County gir konsernet den største inntekten, så vil en nyetablering i Power County fra samme konsern bare gi en unødvendig konkurranse for dem som allerede er etablert. Nettopp derfor vil Farmer County være et bedre alternativ for lokasjon av nyetableringen, og hvis man ser på salg per innbygger så kommer North Town StripMall best ut, noe som kan tyde på at betalingsevnen og viljen er høy i Farmer County. Når det er sakt vil det også være en fordel om konsernet klarer å finne en lokasjon som ikke har tilhørighet til et kjøpesenter, samtidig er det positiv for profitten hvis dem klarer å ha en Drive trough og nærhet til en skole.**
+
+**Klarer konsernet å innfri betingelsene satt ovenfor, så vil vi anbefale en nyetablering av nytt utsalg i Farmer County.**
+
+
