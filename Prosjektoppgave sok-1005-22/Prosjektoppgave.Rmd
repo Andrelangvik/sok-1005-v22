@@ -282,16 +282,18 @@ df_2 %>%
 ---
 
 ```{r, warning=FALSE, message=FALSE}
+#Velger data som skal være med i korrelasjonsplottet
 plotkorrelasjon2 <- df_2 %>% select(Store_Location, 
                                     Store_Drive_Through, Profit, Store_Near_School, 
                                     Store_Competition_Fastfood)
-
+#Bruker funksjon plot_correlation får å korrelasjonplott
 plt7 <- plot_correlation(
   plotkorrelasjon2,
-  type = ("all"),
-  ggtheme = theme_bw(),
-  theme_config = list(legend.position = "bottom", 
-                      axis.text.x = element_text(angle = 90)))
+  type = ("all"), #Velger alle varablene
+  ggtheme = theme_bw(), #Pynter plottet
+  theme_config = list(legend.position = "bottom", #Legger korrelasjonsmålet nederst
+                      axis.text.x = element_text(angle = 90))) 
+                      #Setter benevningene på en ryddig måte
 ```
 **Dette plottet viser oss hvordan profitten korrelerer med andre variabler som er viktig å tenke igjennom før man etablerer et nytt utsalg. Korrelasjon er et statiske mål på hvor mye to målbare størrelser henger sammen med hverandre og er fra -1 til 1 som beskriver negativ eller positiv korrelasjon. Dataen som blir presentert viser oss at profitten korrelerer positivt når utsalget ligger nærme en skole, har en Drive trough og har plassering som ikke har en tilhørighet til et kjøpesenter. Hvis man tar utgangspunkt i et frittstående utsalg, vil det være optimalt å ha en Drive trough samtidig ha en nærhet til en skole. Dette er informasjon som vil være viktig å tenke på ved nyetablerig** 
 
